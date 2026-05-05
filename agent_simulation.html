@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent Message Simulation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f0ede8;
+      --surface:  #e8e4dd;
+      --card:     #ffffff;
+      --border:   #d4cfc7;
+      --dark:     #1a1814;
+      --accent:   #c84b31;
+      --blue:     #2d6a9f;
+      --green:    #2d7d4f;
+      --gold:     #b5860d;
+      --text:     #2a2520;
+      --muted:    #8a847c;
+      --mono:     'IBM Plex Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── header ── */
+    header {
+      background: var(--dark);
+      color: #fff;
+      padding: 40px 40px 32px;
+      position: relative;
+      overflow: hidden;
+    }
+    header::after {
+      content: 'AGENTS';
+      position: absolute;
+      right: -10px; top: -10px;
+      font-size: 120px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.04);
+      pointer-events: none;
+      letter-spacing: -4px;
+    }
+    .tag {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 2px;
+      padding: 4px 10px;
+      border-radius: 2px;
+      margin-bottom: 14px;
+    }
+    header h1 {
+      font-size: clamp(28px, 5vw, 56px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -1px;
+    }
+    header h1 span { color: var(--accent); }
+    header p {
+      margin-top: 10px;
+      color: rgba(255,255,255,0.45);
+      font-size: 13px;
+      font-family: var(--mono);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── layout ── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 768px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ── panel ── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .panel-header {
+      background: var(--dark);
+      color: #fff;
+      padding: 14px 20px;
+      font-size: 11px;
+      font-family: var(--mono);
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-header .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .panel-body { padding: 20px; }
+
+    /* ── agent cards ── */
+    .agent-list { display: flex; flex-direction: column; gap: 10px; }
+    .agent-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      position: relative;
+    }
+    .agent-card:hover { border-color: var(--dark); transform: translateX(3px); }
+    .agent-card.selected {
+      border-color: var(--accent);
+      background: rgba(200,75,49,0.05);
+    }
+    .agent-card .a-name {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 3px;
+    }
+    .agent-card .a-role {
+      font-size: 11px;
+      font-family: var(--mono);
+      letter-spacing: 1px;
+    }
+    .role-manager { color: var(--accent); }
+    .role-worker  { color: var(--blue); }
+    .role-hr      { color: var(--green); }
+
+    .badge {
+      position: absolute;
+      top: 10px; right: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 2px 7px;
+      border-radius: 10px;
+      display: none;
+    }
+    .badge.visible { display: block; }
+
+    /* ── compose form ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .form-group select,
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group select:focus,
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: var(--dark); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .send-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--dark);
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .send-btn:hover { background: var(--accent); }
+
+    /* ── message feed ── */
+    #message-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-height: 580px;
+      overflow-y: auto;
+    }
+    #message-feed::-webkit-scrollbar { width: 4px; }
+    #message-feed::-webkit-scrollbar-track { background: var(--surface); }
+    #message-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg-item {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-item:last-child { border-bottom: none; }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .msg-from {
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .msg-arrow { color: var(--muted); font-size: 12px; }
+    .msg-to { font-size: 13px; color: var(--muted); }
+    .msg-time {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .msg-subject {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .msg-content {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .msg-reply {
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 4px 4px 0;
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .msg-reply strong {
+      display: block;
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 1px;
+      color: var(--accent);
+      margin-bottom: 4px;
+      font-style: normal;
+    }
+
+    .empty-feed {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    /* ── preset buttons ── */
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .preset-btn {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .preset-btn:hover {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+
+    /* ── stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 20px;
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--dark);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── section label ── */
+    .section-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="tag">CSC 309 — PROJECT 19</div>
+  <h1>Agent <span>Message</span><br>Simulation</h1>
+  <p>Office Workplace · Manager / Worker / HR · Multi-Agent System</p>
+</header>
+
+<div class="container">
+
+  <!-- stats -->
+  <div class="stats-bar">
+    <div class="stat-box">
+      <div class="stat-num" id="stat-sent">0</div>
+      <div class="stat-label">Messages Sent</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-agents">5</div>
+      <div class="stat-label">Active Agents</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-rounds">0</div>
+      <div class="stat-label">Rounds Run</div>
+    </div>
+  </div>
+
+  <!-- preset scenarios -->
+  <p class="section-label">Quick Scenarios</p>
+  <div class="preset-row">
+    <button class="preset-btn" onclick="runPreset('task')">📋 Manager Assigns Tasks</button>
+    <button class="preset-btn" onclick="runPreset('leave')">🏖 Worker Requests Leave</button>
+    <button class="preset-btn" onclick="runPreset('salary')">💰 Salary Complaint</button>
+    <button class="preset-btn" onclick="runPreset('meeting')">📅 Schedule Team Meeting</button>
+    <button class="preset-btn" onclick="runPreset('all')">▶ Run Full Simulation</button>
+    <button class="preset-btn" onclick="clearFeed()">🗑 Clear Feed</button>
+  </div>
+
+  <div class="two-col">
+
+    <!-- LEFT: agents + compose -->
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <!-- Agent list -->
+      <div class="panel">
+        <div class="panel-header"><span class="dot"></span> AGENTS IN OFFICE</div>
+        <div class="panel-body">
+          <div class="agent-list" id="agent-list"></div>
+        </div>
+      </div>
+
+      <!-- Compose -->
+      <div class="panel">
+        <div class="panel-header"><span class="dot"></span> COMPOSE MESSAGE</div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label>From (Sender)</label>
+            <select id="from-select"></select>
+          </div>
+          <div class="form-group">
+            <label>To (Receiver)</label>
+            <select id="to-select"></select>
+          </div>
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" id="subject-input" placeholder="e.g. Task Assignment"/>
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea id="content-input" placeholder="Type your message here..."></textarea>
+          </div>
+          <button class="send-btn" onclick="sendManualMessage()">Send Message →</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: message feed -->
+    <div class="panel">
+      <div class="panel-header"><span class="dot"></span> MESSAGE FEED — LIVE SIMULATION</div>
+      <div id="message-feed">
+        <div class="empty-feed">No messages yet.<br>Select a scenario or compose a message.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>AGENT MESSAGE SIMULATION SYSTEM · CSC 309 PROJECT 19 · MULTI-AGENT COMMUNICATION</footer>
+
+<script>
+  // ─────────────────────────────────────────────────────────
+  // THE AGENTS — Each has a name, role, and reply style
+  // ─────────────────────────────────────────────────────────
+
+  const agents = [
+    { name: 'Ebube',  role: 'Manager' },
+    { name: 'Jude',   role: 'Worker'  },
+    { name: 'Emma',   role: 'Worker'  },
+    { name: 'Adaeze', role: 'HR'      },
+    { name: 'Chikum', role: 'Worker'  },
+  ];
+
+  // Tracks how many messages each agent has (for badge display)
+  const inboxCount = {};
+  agents.forEach(a => inboxCount[a.name] = 0);
+
+  let totalSent  = 0;
+  let totalRounds = 0;
+
+
+  // ─────────────────────────────────────────────────────────
+  // REPLY GENERATOR — Each role has its own set of replies
+  // ─────────────────────────────────────────────────────────
+
+  const replies = {
+    Manager: [
+      (from) => `Thank you for the update, ${from}. I will review this shortly.`,
+      (from) => `Noted, ${from}. Please ensure this is completed by end of day.`,
+      (from) => `Understood. I will schedule a meeting to discuss this further.`,
+      (from) => `Good work, ${from}. I will escalate this to the board if necessary.`,
+      (from) => `Acknowledged. Please proceed and report back with progress.`,
+    ],
+    Worker: [
+      (from) => `Understood, ${from}. I will get started on this right away.`,
+      (from) => `Thank you! I will complete this task as soon as possible.`,
+      (from) => `Received. I have a few questions — can we discuss briefly?`,
+      (from) => `Got it! I will keep you updated on my progress.`,
+      (from) => `Message received. I will handle this and report back once done.`,
+    ],
+    HR: [
+      (from) => `Thank you, ${from}. I will check our policy and respond formally.`,
+      (from) => `This has been logged in our HR system. We will follow up within 24 hours.`,
+      (from) => `Noted. Please fill out the necessary forms and submit them to HR.`,
+      (from) => `Your concern has been received. HR will investigate accordingly.`,
+      (from) => `Thank you for reaching out. This will be handled with full confidentiality.`,
+    ]
+  };
+
+  function generateReply(receiverRole, senderName) {
+    const options = replies[receiverRole] || [(f) => `Message received from ${f}. Thank you.`];
+    const fn = options[Math.floor(Math.random() * options.length)];
+    return fn(senderName);
+  }
+
+
+  // ─────────────────────────────────────────────────────────
+  // SEND A MESSAGE AND DISPLAY IT IN THE FEED
+  // ─────────────────────────────────────────────────────────
+
+  function sendMessage(fromName, toName, subject, content, delay = 0) {
+    setTimeout(() => {
+      const sender   = agents.find(a => a.name === fromName);
+      const receiver = agents.find(a => a.name === toName);
+      if (!sender || !receiver) return;
+
+      const now   = new Date();
+      const time  = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const reply = generateReply(receiver.role, fromName);
+
+      // Remove empty state if present
+      const feed = document.getElementById('message-feed');
+      const empty = feed.querySelector('.empty-feed');
+      if (empty) empty.remove();
+
+      // Role colour classes
+      const roleClass = { Manager: 'role-manager', Worker: 'role-worker', HR: 'role-hr' };
+
+      // Build the message card
+      const item = document.createElement('div');
+      item.className = 'msg-item';
+      item.innerHTML = `
+        <div class="msg-meta">
+          <span class="msg-from ${roleClass[sender.role]}">${fromName} <span style="font-weight:400;font-size:11px;opacity:0.6">(${sender.role})</span></span>
+          <span class="msg-arrow">→</span>
+          <span class="msg-to">${toName} <span style="font-size:11px">(${receiver.role})</span></span>
+          <span class="msg-time">${time}</span>
+        </div>
+        <div class="msg-subject">SUBJECT: ${subject}</div>
+        <div class="msg-content">${content}</div>
+        <div class="msg-reply">
+          <strong>AUTO-REPLY FROM ${toName.toUpperCase()}</strong>
+          ${reply}
+        </div>`;
+
+      feed.prepend(item);
+
+      // Update counts
+      totalSent++;
+      inboxCount[toName]++;
+      updateStats();
+      updateBadges();
+    }, delay);
+  }
+
+
+  // ─────────────────────────────────────────────────────────
+  // MANUAL COMPOSE BUTTON
+  // ─────────────────────────────────────────────────────────
+
+  function sendManualMessage() {
+    const from    = document.getElementById('from-select').value;
+    const to      = document.getElementById('to-select').value;
+    const subject = document.getElementById('subject-input').value.trim();
+    const content = document.getElementById('content-input').value.trim();
+
+    if (from === to)   { alert('Sender and receiver cannot be the same person!'); return; }
+    if (!subject)      { alert('Please enter a subject.'); return; }
+    if (!content)      { alert('Please enter a message.'); return; }
+
+    sendMessage(from, to, subject, content);
+
+    // Clear form
+    document.getElementById('subject-input').value  = '';
+    document.getElementById('content-input').value  = '';
+  }
+
+
+  // ─────────────────────────────────────────────────────────
+  // PRESET SCENARIOS
+  // ─────────────────────────────────────────────────────────
+
+  const presets = {
+    task: [
+      ['Ebube', 'Jude',   'New Project Assignment',  'Jude, please begin work on the client database module. Deadline is Friday.',       0],
+      ['Ebube', 'Emma',   'Report Submission',        'Emma, I need the Q3 progress report submitted by 3pm today.',                     600],
+      ['Ebube', 'Chikum', 'Team Meeting Preparation', 'Chikum, please prepare a short presentation for the team meeting on Thursday.',  1200],
+    ],
+    leave: [
+      ['Jude',   'Adaeze', 'Leave Application',       'Hi Adaeze, I would like to apply for 3 days annual leave next week. Please advise.',   0],
+      ['Adaeze', 'Ebube',  'Leave Request — Jude',    'Hello Ebube, Jude has applied for leave. Kindly approve or decline at your earliest convenience.', 800],
+    ],
+    salary: [
+      ['Emma',   'Adaeze', 'Salary Discrepancy',      'Good morning Adaeze, I noticed a discrepancy in this month\'s salary. Can you look into it?', 0],
+      ['Adaeze', 'Ebube',  'Payroll Issue — Emma',    'There was a system error in this month\'s payroll. Emma\'s case has been flagged for correction.', 800],
+    ],
+    meeting: [
+      ['Ebube', 'Adaeze', 'Meeting Agenda Request',   'Adaeze, please prepare and circulate the agenda for Thursday\'s all-staff meeting.',    0],
+      ['Ebube', 'Jude',   'Meeting Attendance',       'Jude, please confirm your attendance for Thursday\'s team meeting by end of today.',     600],
+      ['Ebube', 'Emma',   'Meeting Attendance',       'Emma, please confirm your attendance for Thursday\'s team meeting by end of today.',    1200],
+      ['Ebube', 'Chikum', 'Meeting Attendance',       'Chikum, please confirm your attendance for Thursday\'s team meeting by end of today.',  1800],
+    ],
+    all: [
+      ['Ebube', 'Jude',   'New Project Assignment',   'Jude, please begin work on the client database module. Deadline is Friday.',             0],
+      ['Ebube', 'Emma',   'Report Submission',        'Emma, I need the Q3 progress report submitted by 3pm today.',                            600],
+      ['Ebube', 'Chikum', 'Team Meeting',             'Chikum, please prepare a presentation for the team meeting on Thursday.',               1200],
+      ['Jude',  'Adaeze', 'Leave Application',        'Hi Adaeze, I would like to apply for 3 days leave next week.',                          1800],
+      ['Emma',  'Adaeze', 'Salary Enquiry',           'Good morning. I noticed a discrepancy in this month\'s salary. Can you look into it?',  2400],
+      ['Adaeze','Ebube',  'Leave Request — Jude',     'Hello Ebube, Jude has applied for leave. Kindly approve or decline.',                   3200],
+      ['Adaeze','Ebube',  'Payroll Issue — Emma',     'There was a payroll system error. Emma\'s case has been flagged for correction.',        3800],
+      ['Chikum','Ebube',  'Presentation Ready',       'Good afternoon. The presentation for Thursday\'s meeting is ready for your review.',    4400],
+    ]
+  };
+
+  function runPreset(key) {
+    const scenario = presets[key];
+    if (!scenario) return;
+    totalRounds++;
+    scenario.forEach(([from, to, subject, content, delay]) => {
+      sendMessage(from, to, subject, content, delay);
+    });
+  }
+
+
+  // ─────────────────────────────────────────────────────────
+  // UI HELPERS
+  // ─────────────────────────────────────────────────────────
+
+  function updateStats() {
+    document.getElementById('stat-sent').textContent   = totalSent;
+    document.getElementById('stat-rounds').textContent = totalRounds;
+  }
+
+  function updateBadges() {
+    agents.forEach(a => {
+      const badge = document.getElementById(`badge-${a.name}`);
+      if (badge) {
+        badge.textContent = inboxCount[a.name];
+        badge.classList.toggle('visible', inboxCount[a.name] > 0);
+      }
+    });
+  }
+
+  function clearFeed() {
+    document.getElementById('message-feed').innerHTML =
+      '<div class="empty-feed">Feed cleared.<br>Run a scenario or compose a message.</div>';
+    agents.forEach(a => inboxCount[a.name] = 0);
+    totalSent   = 0;
+    totalRounds = 0;
+    updateStats();
+    updateBadges();
+  }
+
+
+  // ─────────────────────────────────────────────────────────
+  // BUILD THE PAGE ON LOAD
+  // ─────────────────────────────────────────────────────────
+
+  function buildAgentList() {
+    const list = document.getElementById('agent-list');
+    const roleClass = { Manager: 'role-manager', Worker: 'role-worker', HR: 'role-hr' };
+
+    agents.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'agent-card';
+      card.id = `agent-card-${a.name}`;
+      card.innerHTML = `
+        <div class="a-name">${a.name}</div>
+        <div class="a-role ${roleClass[a.role]}">${a.role.toUpperCase()}</div>
+        <span class="badge" id="badge-${a.name}">0</span>`;
+      list.appendChild(card);
+    });
+  }
+
+  function buildSelects() {
+    const fromSel = document.getElementById('from-select');
+    const toSel   = document.getElementById('to-select');
+
+    agents.forEach(a => {
+      fromSel.innerHTML += `<option value="${a.name}">${a.name} (${a.role})</option>`;
+      toSel.innerHTML   += `<option value="${a.name}">${a.name} (${a.role})</option>`;
+    });
+
+    // Default to different people
+    toSel.selectedIndex = 1;
+  }
+
+  buildAgentList();
+  buildSelects();
+</script>
+</body>
+</html>
